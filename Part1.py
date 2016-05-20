@@ -4,7 +4,30 @@ import sys
 from itertools import groupby
 from operator import itemgetter
 
-__all__ = ['User', 'Item', 'get_profiles']
+__all__ = ['User', 'Item', 'Profiles']
+
+
+class Profiles(object):
+    @staticmethod
+    def create(input_file):
+        data = _get_content(input_file)
+        return Profiles(_fold_by_column(data, 0, User), _fold_by_column(data, 1, Item))
+
+    def __init__(self, users, items):
+        self._users = users
+        self._items = items
+
+    def get_user_by_id(self, id_):
+        return self._get_by_id('users', id_)
+
+    def get_item_by_id(self, id_):
+        return self._get_by_id('items', id_)
+
+    def _get_by_id(self, attr, id_):
+        for e in getattr(self, '_%s' % attr):
+            if e.id == id_:
+                return e
+        return None
 
 
 class Ratable(object):
@@ -18,17 +41,27 @@ class Ratable(object):
     def __repr__(self):
         return '%s(%s)' % (self.__class__.__name__, self.__dict__)
 
-    def __str__(self):
+    def pretty_print(self):
         top = '| {:^19} |\n'.format('%s %s' % (self.__class__.__name__, self.id))
-        extra_attr = list(set(self.__dict__.keys()) - {'_id', 'ratings'})[0]
-        extra_attr_singular_capitalized = extra_attr.capitalize()[:-1]
-        headers = '| {:^8} | {:^8} |\n'.format(extra_attr_singular_capitalized, 'Rating')
+        headers = '| {:^8} | {:^8} |\n'.format(self._extra_attr().capitalize()[:-1], 'Rating')
         sep = '+-{0}-+-{0}-+\n'.format('-' * 8)
         content = sep + headers + sep
-        for a, r in zip(getattr(self, extra_attr), self.ratings):
+        for a, r in self._attr_rating_pairs():
             content += '| {:^8} | {:^8} |\n'.format(a, r)
             content += sep
-        return sep + top + content
+        print sep + top + content
+
+    def _attr_rating_pairs(self):
+        return zip(getattr(self, self._extra_attr()), self.ratings)
+
+    def _extra_attr(self):
+        return list(set(self.__dict__.keys()) - {'_id', 'ratings'})[0]
+
+    def get_rating_by_id(self, id_):
+        for eid, r in self._attr_rating_pairs():
+            if eid == id_:
+                return r
+        return None
 
     @property
     def id(self):
@@ -45,12 +78,6 @@ class Item(Ratable):
     def __init__(self, id_, ratings, users):
         super(Item, self).__init__(id_, ratings)
         self.users = users
-
-
-def get_profiles(input_file):
-    data = _get_content(input_file)
-    return {'users': _fold_by_column(data, 0, User),
-            'items': _fold_by_column(data, 1, Item)}
 
 
 def _get_content(input_file):
