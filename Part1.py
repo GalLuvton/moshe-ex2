@@ -28,6 +28,14 @@ class Profiles(object):
             if e.id == id_:
                 return e
         return None
+    
+    @property
+    def users(self):
+        return self._users[:]
+    
+    @property
+    def items(self):
+        return self._items[:]
 
 
 class Ratable(object):
