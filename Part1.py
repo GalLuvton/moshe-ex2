@@ -17,6 +17,7 @@ class Profiles(object):
     def __init__(self, users, items):
         self._users = users
         self._items = items
+        self._avg_rating = self._calc_avg_rating()
 
     def split_20_80(self):
         seed = 1337
@@ -33,12 +34,24 @@ class Profiles(object):
             if e.id == id_:
                 return e
         return None
+    
+    def _calc_avg_rating(self):
+        count = 0.0
+        sum_ = 0.0
+        for user in self._users:
+            sum_ += sum(user.ratings)
+            count += len(user.ratings)
+        return sum_ / count
 
     def get_rating_by_uid_iid(self, uid_, iid_):
         u = self.get_user_by_id(uid_)
         if u is not None:
             return u.get_rating_by_id(iid_)
         return 0
+    
+    @property
+    def average_rating(self):
+        return self._avg_rating
 
 
 class Ratable(object):
