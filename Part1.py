@@ -1,57 +1,48 @@
 import csv
+import numpy as np
 import sys
 
 from itertools import groupby
 from operator import itemgetter
 from sklearn.cross_validation import train_test_split
 
-__all__ = ['User', 'Item', 'Profiles']
+__all__ = ['st_sv']
 
 
-class Profiles(object):
-    @staticmethod
-    def create(input_file):
-        data = _get_content(input_file)
-        return Profiles(_fold_by_column(data, 0, User), _fold_by_column(data, 1, Item))
+def st_sv(input_file):
+    data = np.array([row[:3] for row in _get_content(input_file)])
+    seed = 1337
+    st, sv = train_test_split(data, test_size=0.2, random_state=seed)
+    nusers, nitems = len(_fold_by_column(data, 0, User)), len(_fold_by_column(data, 1, Item))
+    return TrainingSet(st), ValidationSet(sv), nusers, nitems
 
-    def __init__(self, users, items):
-        self._users = users
-        self._items = items
-        self._avg_rating = self._calc_avg_rating()
 
-    def split_20_80(self):
-        seed = 1337
-        return train_test_split(self._users, test_size=0.8, random_state=seed)
+class TrainingSet(object):
+    def __init__(self, st):
+        self._st = st
+        self._st_dict = {(r[0], r[1]): r[2] for r in self._st}
+        self._average_rating = self._calc_average_rating()
 
-    def get_user_by_id(self, id_):
-        return self._get_by_id('users', id_)
+    def _calc_average_rating(self):
+        return self._st.mean(axis=0)[2]
 
-    def get_item_by_id(self, id_):
-        return self._get_by_id('items', id_)
-
-    def _get_by_id(self, attr, id_):
-        for e in getattr(self, '_%s' % attr):
-            if e.id == id_:
-                return e
-        return None
-    
-    def _calc_avg_rating(self):
-        count = 0.0
-        sum_ = 0.0
-        for user in self._users:
-            sum_ += sum(user.ratings)
-            count += len(user.ratings)
-        return sum_ / count
-
-    def get_rating_by_uid_iid(self, uid_, iid_):
-        u = self.get_user_by_id(uid_)
-        if u is not None:
-            return u.get_rating_by_id(iid_)
-        return 0
-    
     @property
     def average_rating(self):
-        return self._avg_rating
+        return self._average_rating
+
+    def get_rating(self, user_id, item_id):
+        return self._st_dict[(user_id, item_id)]
+
+
+class ValidationSet(object):
+    def __init__(self, sv):
+        self._sv = sv
+
+    def __iter__(self):
+        return iter(self._sv)
+
+    def next(self):
+        return next(self._sv)
 
 
 class Ratable(object):
@@ -64,28 +55,6 @@ class Ratable(object):
 
     def __repr__(self):
         return '%s(%s)' % (self.__class__.__name__, self.__dict__)
-
-    def pretty_print(self):
-        top = '| {:^19} |\n'.format('%s %s' % (self.__class__.__name__, self.id))
-        headers = '| {:^8} | {:^8} |\n'.format(self._extra_attr().capitalize()[:-1], 'Rating')
-        sep = '+-{0}-+-{0}-+\n'.format('-' * 8)
-        content = sep + headers + sep
-        for a, r in self._attr_rating_pairs():
-            content += '| {:^8} | {:^8} |\n'.format(a, r)
-            content += sep
-        print sep + top + content
-
-    def _attr_rating_pairs(self):
-        return zip(getattr(self, self._extra_attr()), self.ratings)
-
-    def _extra_attr(self):
-        return list(set(self.__dict__.keys()) - {'_id', 'ratings'})[0]
-
-    def get_rating_by_id(self, id_):
-        for eid, r in self._attr_rating_pairs():
-            if eid == id_:
-                return r
-        return 0
 
     @property
     def id(self):
