@@ -3,6 +3,7 @@ import sys
 
 from itertools import groupby
 from operator import itemgetter
+from sklearn.cross_validation import train_test_split
 
 __all__ = ['User', 'Item', 'Profiles']
 
@@ -16,6 +17,10 @@ class Profiles(object):
     def __init__(self, users, items):
         self._users = users
         self._items = items
+
+    def split_20_80(self):
+        seed = 1337
+        return train_test_split(self._users, test_size=0.8, random_state=seed)
 
     def get_user_by_id(self, id_):
         return self._get_by_id('users', id_)
