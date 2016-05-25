@@ -34,6 +34,12 @@ class Profiles(object):
                 return e
         return None
 
+    def get_rating_by_uid_iid(self, uid_, iid_):
+        u = self.get_user_by_id(uid_)
+        if u is not None:
+            return u.get_rating_by_id(iid_)
+        return 0
+
 
 class Ratable(object):
     def __init__(self, id_, ratings):
@@ -66,7 +72,7 @@ class Ratable(object):
         for eid, r in self._attr_rating_pairs():
             if eid == id_:
                 return r
-        return None
+        return 0
 
     @property
     def id(self):
