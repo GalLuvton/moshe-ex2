@@ -69,12 +69,12 @@ def recalcbbook():
             icount = 0
             for usr in usr_set:
                 for itm in itm_set:
-                    rating = st.get_rating_by_uid_iid(usr + 1, itm + 1)  # TODO - rename to whatever it really is
+                    rating = st.get_rating(usr + 1, itm + 1)
                     if rating > 0:
                         isum += rating
                         icount += 1
             if icount == 0:
-                bbook[(bi, bj)] = st.avg_rating
+                bbook[(bi, bj)] = st.average_rating
             else:
                 bbook[(bi, bj)] = isum / icount
 
@@ -88,9 +88,9 @@ def rmse():
     total_error = 0
     count = 0
 
-    for (usr, itm, rating) in sv.getsomethingawesome:  # TODO - rename to whatever it really is
-        usr_cluster = uarray.get_by_id(usr)
-        itm_cluster = varray.get_by_id(itm)
+    for (usr, itm, rating) in sv:
+        usr_cluster = uarray.get_by_id(usr - 1)
+        itm_cluster = varray.get_by_id(itm - 1)
         total_error += (bbook[usr_cluster, itm_cluster] - rating)**2
         count += 1
 
@@ -103,12 +103,12 @@ def recalc_vector(vec1, vec2):
     global st
 
     vec1.clean()
-    for i in range(vec1.len):
+    for i in range(len(vec1)):
         newarr = [0 for _ in range(k)]
         for arj in range(k):
-            for j in range(vec2.len):
+            for j in range(len(vec2)):
                 usrs_cluster = vec2.get_by_id(j)
-                a = st.get_rating_by_uid_iid(i + 1, j + 1)
+                a = st.get_rating(i + 1, j + 1)
                 b = bbook[(arj, usrs_cluster)]
                 newarr[arj] += (a - b) ** 2
         new_cluster = np.argmin(newarr)
@@ -177,7 +177,7 @@ def main():
         maxt = int(smaxt)
         epsilon = float(sepsilon)
 
-    st, sv, p, q = Profiles.create(input_file).split_20_80()
+    st, sv, p, q = st_sv(input_file)
     uarray = DataRatingVector(p)
     uarray.randomize()
     varray = DataRatingVector(q)
@@ -186,17 +186,14 @@ def main():
     t, err = recalc_ratings()
     print 'Finished after %d iterations (out of %d), with an error of %f' % (t, maxt, err)
 
-    output_file = u_output_dir+"UVector.csv"
-    print "Writing U vector to '%s' ..." % output_file
-    write_dataratingvector_to_csv(uarray, output_file)
+    print "Writing U vector to '%s' ..." % u_output_dir
+    write_dataratingvector_to_csv(uarray, u_output_dir)
     print 'DONE'
-    output_file = v_output_dir+"VVector.csv"
-    print "Writing V vector to '%s' ..." % output_file
-    write_dataratingvector_to_csv(varray, output_file)
+    print "Writing V vector to '%s' ..." % v_output_dir
+    write_dataratingvector_to_csv(varray, v_output_dir)
     print 'DONE'
-    output_file = b_output_dir+"BMatrix.csv"
-    print "Writing B matrix to '%s'..." % output_file
-    write_to_csv(bbook, output_file)
+    print "Writing B matrix to '%s'..." % b_output_dir
+    write_to_csv(bbook, b_output_dir)
     print 'DONE'
 
 

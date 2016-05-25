@@ -31,7 +31,10 @@ class TrainingSet(object):
         return self._average_rating
 
     def get_rating(self, user_id, item_id):
-        return self._st_dict[(user_id, item_id)]
+        try:
+            return self._st_dict[(user_id, item_id)]
+        except KeyError:
+            return 0
 
 
 class ValidationSet(object):
