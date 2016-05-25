@@ -20,32 +20,40 @@ bbook = 0
 
 class DataRatingVector(object):
     def __init__(self, size):
-        self.len = size
-        self.data = [0 for _ in range(size)]
-        self.mapping = defaultdict(set)
+        self._len = size
+        self._data = [0 for _ in range(size)]
+        self._mapping = defaultdict(set)
+
+    def __len__(self):
+        return self._len
 
     def clean(self):
-        self.data = [0 for _ in range(self.len)]
-        self.mapping = defaultdict(set)
+        self._data = [0 for _ in range(self._len)]
+        self._mapping = defaultdict(set)
 
     def randomize(self):
-        tmp = [random.randint(0, k - 1) for _ in range(self.len)]
-        for itm in range(self.len):  # 'itm' is the data id, 'tmp[itm]' is the cluster id
-            self.data[itm] = tmp[itm]
-            self.mapping[tmp[itm]] = itm
+        global k
+        tmp = [random.randint(0, k - 1) for _ in range(self._len)]
+        for itm in range(self._len):  # 'itm' is the data id, 'tmp[itm]' is the cluster id
+            self._data[itm] = tmp[itm]
+            self._mapping[tmp[itm]].add(itm)
 
     def add_data(self, cluster, id_):
-        self.data[id_] = cluster
-        self.mapping[cluster].add(id_)
+        self._data[id_] = cluster
+        self._mapping[cluster].add(id_)
 
     def get_by_cluster(self, cluster):
-        return self.mapping[cluster]
+        return self._mapping[cluster]
 
     def get_by_id(self, id_):
-        return self.data[id_]
+        return self._data[id_]
+
+    def to_list(self):
+        return self._data
 
 
 def recalcbbook():
+    global k
     global uarray
     global varray
     global bbook
@@ -61,7 +69,7 @@ def recalcbbook():
             icount = 0
             for usr in usr_set:
                 for itm in itm_set:
-                    rating = st.get_rating_by_uid_iid(usr + 1, itm + 1)
+                    rating = st.get_rating_by_uid_iid(usr + 1, itm + 1)  # TODO - rename to whatever it really is
                     if rating > 0:
                         isum += rating
                         icount += 1
@@ -72,23 +80,27 @@ def recalcbbook():
 
 
 def rmse():
+    global uarray
+    global varray
     global bbook
     global sv
 
-    #  iterate over sv - for every i,j in sv, find cluster_of_i and cluster_of_j
-    #  calculate (bbook[cluster_of_i, cluster_of_j - sv[i,j])**2
-    #  sum into total_error, return (total_error / num_of_items)
-
     total_error = 0
     count = 0
+
+    for (usr, itm, rating) in sv.getsomethingawesome:  # TODO - rename to whatever it really is
+        usr_cluster = uarray.get_by_id(usr)
+        itm_cluster = varray.get_by_id(itm)
+        total_error += (bbook[usr_cluster, itm_cluster] - rating)**2
+        count += 1
 
     return total_error / count
 
 
 def recalc_vector(vec1, vec2):
+    global k
     global bbook
     global st
-    global k
 
     vec1.clean()
     for i in range(vec1.len):
@@ -104,10 +116,13 @@ def recalc_vector(vec1, vec2):
 
 
 def recalc_ratings():
+    global maxt
+    global epsilon
     global uarray
     global varray
 
     t = 1
+    curerror = 0
     lasterror = 99999
     recalcbbook()
     while t <= maxt:
@@ -118,8 +133,9 @@ def recalc_ratings():
         curerror = rmse()
         t += 1
         if lasterror * (1 - epsilon) < curerror:
-            t = maxt
-    return
+            break
+
+    return t, curerror
 
 
 def write_to_csv(profiles, filename):
@@ -132,16 +148,17 @@ def write_to_csv(profiles, filename):
 def write_dataratingvector_to_csv(vector, filename):
     with open(filename, 'wb') as f:
         writer = csv.writer(f)
-        writer.writerow(vector.data)
+        writer.writerow(vector.to_list())
 
 
 def main():
     global k
     global maxt
     global epsilon
-    global varray
     global uarray
+    global varray
     global st
+    global sv
 
     if not (len(sys.argv) == 6 or len(sys.argv) == 9) or sys.argv[1] != 'ExtractCB':
         print ('usage: python Part2.py ExtractCB '
@@ -160,24 +177,27 @@ def main():
         maxt = int(smaxt)
         epsilon = float(sepsilon)
 
-    st = Profiles.create(input_file)
-    varray = DataRatingVector(len(st._items))
-    varray.randomize()
-    uarray = DataRatingVector(len(st._users))
+    st, sv, p, q = Profiles.create(input_file).split_20_80()
+    uarray = DataRatingVector(p)
     uarray.randomize()
+    varray = DataRatingVector(q)
+    varray.randomize()
 
-    recalc_ratings()
+    t, err = recalc_ratings()
+    print 'Finished after %d iterations (out of %d), with an error of %f' % (t, maxt, err)
 
-    print "Writing U vector ..."
-    write_dataratingvector_to_csv(uarray, u_output_dir+"UVector.csv")
+    output_file = u_output_dir+"UVector.csv"
+    print "Writing U vector to '%s' ..." % output_file
+    write_dataratingvector_to_csv(uarray, output_file)
     print 'DONE'
-    print "Writing V vector ..."
-    write_dataratingvector_to_csv(varray, v_output_dir+"VVector.csv")
+    output_file = v_output_dir+"VVector.csv"
+    print "Writing V vector to '%s' ..." % output_file
+    write_dataratingvector_to_csv(varray, output_file)
     print 'DONE'
-    print "Writing B matrix ..."
-    write_to_csv(bbook, b_output_dir+"BMatrix.csv")
+    output_file = b_output_dir+"BMatrix.csv"
+    print "Writing B matrix to '%s'..." % output_file
+    write_to_csv(bbook, output_file)
     print 'DONE'
-    print 'SUCCESS! :-)'
 
 
 if __name__ == '__main__':

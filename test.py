@@ -1,6 +1,7 @@
+import os
 from random import randint
 
-filename = "C:\\Users\\dell\\Desktop\\shittest.csv"
+filename = os.getcwd() + r"\fakeInput.csv"
 with open(filename, 'wb') as f:
     for i in range(20):
         for j in range(20):
